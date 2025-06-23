@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Scan Product QR • Smart Shop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #f8fafd, #e0ecf7);
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #007aff;
+    }
+
+    #scanner {
+      width: 100%;
+      max-width: 360px;
+      margin: 20px auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 16px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      color: white;
+    }
+
+    #startBtn {
+      background: #007aff;
+    }
+
+    #stopBtn {
+      background: #ff3b30;
+    }
+
+    .msg {
+      margin-top: 10px;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    #messageBox {
+      margin-top: 12px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scan Product</h1>
+  <div id="scanner"></div>
+
+  <div class="buttons">
+    <button id="startBtn">Start Scan</button>
+    <button id="stopBtn" style="display:none;">Stop</button>
+  </div>
+
+  <div class="msg">Valid format: <code>product:Item;price:123</code></div>
+  <div id="messageBox"></div>
+
+  <!-- 🔊 Audio elements for feedback -->
+  <audio id="successSound" src="success.mp3" preload="auto"></audio>
+  <audio id="errorSound" src="error.mp3" preload="auto"></audio>
+<script src="config.js"></script>
+  <script>
+    const scanner = new Html5Qrcode("scanner");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    let scanning = false;
+
+    function parseProduct(text) {
+      const pattern = /^product:(.+);price:(\d+(\.\d{1,2})?)$/i;
+      const match = pattern.exec(text.trim());
+      if (match) {
+        return {
+          name: match[1].trim(),
+          price: parseFloat(match[2])
+        };
+      }
+      return null;
+    }
+
+    function sendToBackend(product, visitId) {
+      console.log("📤 Sending:", product, "→ visit:", visitId);
+      fetch(`${window.env.BACKEND_URL}/visits/${visitId}/add-product`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product)
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("❌ Server response " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        console.log("✅ Product saved:", data.updatedVisit?.items?.length, "items total");
+      })
+      .catch(err => {
+        console.error("🚨 Product save failed:", err);
+      });
+    }
+
+    function startScan() {
+      const visitId = localStorage.getItem("visitId");
+      if (!visitId || visitId.length !== 24) {
+        console.warn("❌ visitId invalid or missing:", visitId);
+        window.location.href = "dashboard.html";
+        return;
+      }
+
+      scanning = true;
+      startBtn.disabled = true;
+      stopBtn.style.display = "inline-block";
+
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          if (!scanning) return;
+          const product = parseProduct(decodedText);
+
+          if (product) {
+            console.log("🎯 Valid QR:", product);
+            document.getElementById("successSound").play();
+            document.getElementById("messageBox").textContent = "";
+            sendToBackend(product, visitId);
+            stopScan();
+          } else {
+            console.warn("⛔ Invalid QR:", decodedText);
+            document.getElementById("errorSound").play();
+            document.getElementById("messageBox").textContent = "❌ Invalid QR format";
+          }
+        },
+        () => {} // silent scan errors
+      );
+    }
+
+    function stopScan() {
+      if (scanning) {
+        scanning = false;
+        startBtn.disabled = false;
+        stopBtn.style.display = "none";
+        scanner.stop().then(() => {
+          document.getElementById("scanner").innerHTML = "";
+        });
+      }
+    }
+
+    startBtn.onclick = startScan;
+    stopBtn.onclick = stopScan;
+  </script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enter OTP • Smart Shop</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body {
+      margin: 0; padding: 0;
+      background: linear-gradient(135deg, #f4f7fa, #e9edf3);
+      height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card {
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(14px);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      width: 360px;
+      position: relative;
+    }
+    h2 {
+      margin: 0 0 25px;
+      text-align: center;
+      color: #222;
+    }
+    .field {
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .field input {
+      width: 100%;
+      padding: 14px 12px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #007aff, #4da6ff);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .message {
+      color: crimson;
+      font-size: 0.85em;
+      text-align: center;
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    emailjs.init("SpVIuiq5Rl_qB_-Ia");
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h2>Enter OTP</h2>
+    <div class="field">
+      <input type="text" id="otp" placeholder="Enter 6-digit OTP" maxlength="6" />
+    </div>
+    <button class="btn" onclick="verifyOtp()">Verify OTP</button>
+    <div class="message" id="otpMessage">Invalid OTP. Please try again.</div>
+  </div>
+ <script src="config.js"></script>
+  <script>
+    const email = localStorage.getItem("registeredEmail");
+    const password = localStorage.getItem("tempPassword");
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (!email || !password) {
+      alert("No registration data found. Redirecting to login.");
+      window.location.href = "index.html";
+    }
+
+    // Send OTP to email
+    emailjs.send("service_6c73rlh", "template_aghxpks", {
+      to_email: email,
+      otp: otp
+    })
+    .then(() => {
+      console.log("OTP sent to email:", email);
+    })
+    .catch((err) => {
+      console.error("EmailJS error:", err);
+      const msg = document.getElementById("otpMessage");
+      msg.innerText = "Failed to send OTP email.";
+      msg.style.display = "block";
+    });
+
+    // Store OTP on backend
+    fetch(`${window.env.BACKEND_URL}/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp })
+      
+    })
+    .then(res => res.text())
+    .then(text => console.log("Backend OTP stored:", text))
+    .catch(err => console.error("Error storing OTP:", err));
+
+    // Handle OTP verification
+    function verifyOtp() {
+      const otpInput = document.getElementById("otp").value.trim();
+      const msg = document.getElementById("otpMessage");
+      
+
+      fetch(`${window.env.BACKEND_URL}/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp: otpInput })
+      })
+      .then(async res => {
+        const text = await res.text();
+        if (res.status === 200) {
+          // ✅ Create account after verifying OTP
+          fetch(`${window.env.BACKEND_URL}/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+          })
+          .then(registerRes => {
+            if (registerRes.ok) {
+              localStorage.setItem("loggedInUser", email);
+              localStorage.setItem("isLoggedIn", "true");
+              localStorage.setItem("otpVerified", "true");
+              localStorage.removeItem("tempPassword");
+              msg.style.display = "none";
+              alert("OTP verified and registration completed!");
+              window.location.href = "dashboard.html";
+            } else if (registerRes.status === 409) {
+              msg.innerText = "User already registered. Please log in.";
+              msg.style.display = "block";
+            } else {
+              msg.innerText = "Registration failed after OTP.";
+              msg.style.display = "block";
+            }
+          });
+        } else {
+          msg.innerText = text || "Invalid OTP.";
+          msg.style.display = "block";
+        }
+      })
+      .catch(err => {
+        console.error("Verification error:", err);
+        msg.innerText = "Server error while verifying OTP.";
+        msg.style.display = "block";
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Cart • Smart Shop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #f8fafd, #e0ecf7);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1 {
+      color: #007aff;
+      text-align: center;
+    }
+
+    .cart-container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      padding: 20px;
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .summary {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    #checkoutBtn {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #00c853, #64dd17);
+      color: white;
+      cursor: pointer;
+    }
+
+    .details {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .empty {
+      text-align: center;
+      color: #888;
+      padding: 40px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Your Cart</h1>
+  <div class="cart-container" id="cartContainer">
+    <div id="cartItems"></div>
+    <div class="summary">
+      Total: ₹<span id="totalPrice">0</span>
+    </div>
+    <div class="details">
+      Time Spent: <span id="timeSpent">--</span>
+    </div>
+    <button id="checkoutBtn" onclick="checkout()">Confirm Checkout</button>
+  </div>
+  <script src="config.js"></script>
+  <script>
+    const visitId = localStorage.getItem("visitId");
+    if (!visitId || visitId.length !== 24) {
+      alert("Visit not active. Please scan a shop QR first.");
+      window.location.href = "dashboard.html";
+    }
+
+    function loadCart() {
+      fetch(`${window.env.FEONTEND_URL}/visits/${visitId}`)
+        .then(res => res.json())
+        .then(visit => {
+          const cartItems = document.getElementById("cartItems");
+          const totalPrice = document.getElementById("totalPrice");
+          const timeSpent = document.getElementById("timeSpent");
+
+          if (!visit.items || visit.items.length === 0) {
+            cartItems.innerHTML = `<div class="empty">🛒 No products scanned yet</div>`;
+            document.getElementById("checkoutBtn").disabled = true;
+            totalPrice.textContent = "0";
+            timeSpent.textContent = "--";
+            return;
+          }
+
+          cartItems.innerHTML = "";
+          visit.items.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "cart-item";
+            div.innerHTML = `<span>${item.name}</span><span>₹${item.price}</span>`;
+            cartItems.appendChild(div);
+          });
+
+          totalPrice.textContent = visit.total.toFixed(2);
+
+          const seconds = Math.floor((Date.now() - new Date(visit.enteredAt)) / 1000);
+          const minutes = Math.floor(seconds / 60);
+          timeSpent.textContent = `${minutes} min ${seconds % 60} sec`;
+        })
+        .catch(err => {
+          console.error("❌ Failed to load visit:", err);
+          alert("Could not fetch visit info. Please try again.");
+        });
+    }
+
+    function checkout() {
+      // ✅ Redirect to payment flow instead of finalizing now
+      window.location.href = "payment.html";
+    }
+
+    loadCart();
+  </script>
+</body>
+</html>

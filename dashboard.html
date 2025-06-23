@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Shop • Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #f4f7fa, #e9edf3);
+      min-height: 100vh;
+    }
+
+    .top-bar {
+      background: #007aff;
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .top-bar button {
+      padding: 6px 12px;
+      background: #ff3e3e;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .container {
+      width: 75%;
+      max-width: 960px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 40px;
+      margin: 30px auto;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #222;
+    }
+
+    .subtitle {
+      color: #777;
+      margin-bottom: 30px;
+    }
+
+    .tile-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: flex-start;
+    }
+
+    .tile {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      width: 160px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      text-decoration: none;
+      color: #007aff;
+      transition: transform 0.2s ease;
+    }
+
+    .tile:hover {
+      transform: translateY(-5px);
+    }
+
+    .tile-icon {
+      font-size: 2.4rem;
+      margin-bottom: 8px;
+    }
+
+    .tile-label {
+      font-size: 0.95rem;
+      font-weight: bold;
+    }
+
+    button.logout {
+      margin-top: 40px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #ff3e3e, #ff6f61);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .tile.locked {
+      pointer-events: none;
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .login-bar {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: white;
+      border-radius: 8px;
+      padding: 6px 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      font-size: 0.9em;
+      font-weight: bold;
+    }
+
+    .login-bar a {
+      color: #007aff;
+      text-decoration: none;
+    }
+
+    .login-bar a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 🔐 Login + OTP session check -->
+  <script>
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const otpVerified = localStorage.getItem("otpVerified") === "true";
+    const user = localStorage.getItem("loggedInUser");
+
+    if (!isLoggedIn || !otpVerified || !user) {
+      window.location.href = "index.html";
+    }
+  </script>
+
+  <div id="shopBar" class="top-bar" style="display:none;">
+    <span id="shopText">You're in: </span>
+    <button onclick="leaveShop()">Leave Shop</button>
+  </div>
+
+  <div class="container" id="dashBoard">
+    <h2>Welcome, <span id="userEmail">Guest</span> 👋</h2>
+    <div class="subtitle">What would you like to do?</div>
+    <div class="login-bar">
+      <a href="index.html?returnTo=dashboard.html">🔐 Login</a>
+    </div>
+
+    <div class="tile-grid">
+      <a href="scan.html" class="tile">
+        <div class="tile-icon">📷</div>
+        <div class="tile-label">Scan Shop QR</div>
+      </a>
+      <a href="history.html" class="tile">
+        <div class="tile-icon">📊</div>
+        <div class="tile-label">Visit History</div>
+      </a>
+      <a id="productScanTile" href="scan-product.html" class="tile locked" title="Scan a shop QR to unlock">
+        <div class="tile-icon">🔒</div>
+        <div class="tile-label">Scan Product QR</div>
+      </a>
+      <a href="cart.html" class="tile locked" id="cartTile" title="Scan a shop QR to unlock">
+        <div class="tile-icon">🛒</div>
+        <div class="tile-label">My Cart</div>
+      </a>
+      <div class="tile locked" id="ordersTile" title="Scan a shop QR to unlock">
+        <div class="tile-icon">📦</div>
+        <div class="tile-label">My Orders</div>
+      </div>
+      <div class="tile locked" id="offersTile" title="Scan a shop QR to unlock">
+        <div class="tile-icon">🎁</div>
+        <div class="tile-label">Offers</div>
+      </div>
+    </div>
+
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
+<script src="config.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const email = localStorage.getItem("loggedInUser") || "Guest";
+      document.getElementById("userEmail").textContent = email;
+      localStorage.setItem("userEmail", email);
+
+      const visitId = localStorage.getItem("visitId");
+      if (visitId) {
+        fetch(`${window.env.BACKEND_URL}/visits/${visitId}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Visit not found");
+            return res.json();
+          })
+          .then(data => {
+            if (!data) return;
+            document.getElementById("userEmail").textContent = data.user;
+            document.getElementById("shopBar").style.display = "flex";
+            document.getElementById("shopText").textContent = "You're in: " + data.shopId;
+
+            document.getElementById("productScanTile")?.classList.remove("locked");
+            document.getElementById("cartTile")?.classList.remove("locked");
+            document.getElementById("ordersTile")?.classList.remove("locked");
+            document.getElementById("offersTile")?.classList.remove("locked");
+
+            document.getElementById("productScanTile").querySelector(".tile-icon").textContent = "📦";
+            document.getElementById("productScanTile").removeAttribute("title");
+          })
+          .catch(err => console.error("❌ Visit fetch failed:", err));
+      }
+    });
+
+    function leaveShop() {
+      localStorage.removeItem("visitId");
+      localStorage.removeItem("scannedShopId");
+      window.location.reload();
+    }
+
+    function logout() {
+      const board = document.getElementById("dashBoard");
+      board.style.opacity = "0";
+      board.style.transform = "translateY(40px)";
+      setTimeout(() => {
+        localStorage.removeItem("loggedInUser");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("otpVerified");
+        window.location.href = "index.html";
+      }, 400);
+    }
+
+    // Hide login bar after login
+    const loginBar = document.querySelector(".login-bar");
+    if (localStorage.getItem("isLoggedIn") === "true" && loginBar) {
+      loginBar.style.display = "none";
+    }
+  </script>
+
+</body>
+</html>

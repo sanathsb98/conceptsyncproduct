@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice • Smart Shop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f6f9fc;
+      padding: 30px;
+      color: #333;
+      text-align: center;
+    }
+
+    .invoice-box {
+      background: white;
+      max-width: 600px;
+      margin: auto;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      margin-bottom: 8px;
+      color: #007aff;
+    }
+
+    .info, .items, .totals {
+      text-align: left;
+      margin-top: 20px;
+    }
+
+    .items table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .items th, .items td {
+      border-bottom: 1px solid #eee;
+      padding: 8px 0;
+    }
+
+    .totals {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    .qr {
+      margin-top: 30px;
+    }
+
+    .qr canvas {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    button {
+      margin-top: 25px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #007aff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #005fcc;
+    }
+
+    #qrOptions, #returnButton {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-box" id="invoice">
+    <h2>🧾 Smart Shop Invoice</h2>
+    <div class="info" id="metaInfo">
+      <div><strong>Visit ID:</strong> <span id="visitId">...</span></div>
+      <div><strong>User:</strong> <span id="email">...</span></div>
+      <div><strong>Shop:</strong> <span id="shop">...</span></div>
+      <div><strong>Entry:</strong> <span id="entry">...</span></div>
+      <div><strong>Exit:</strong> <span id="exit">...</span></div>
+    </div>
+
+    <div class="items">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th style="text-align:right;">Price</th>
+          </tr>
+        </thead>
+        <tbody id="productTable"></tbody>
+      </table>
+    </div>
+
+    <div class="totals">
+      <div>Total Items: <span id="itemCount">0</span></div>
+      <div>Total Paid: ₹<span id="totalAmount">0.00</span></div>
+    </div>
+
+    <div class="qr">
+      <canvas id="qr" width="140" height="140"></canvas>
+      <div id="qrOptions">
+        <button onclick="downloadQR()">⬇️ Download QR</button>
+      </div>
+      <div style="margin-top:8px; font-size:0.85rem; color:#777;">QR includes only item names and prices</div>
+    </div>
+
+    <button onclick="window.print()">🖨️ Print Invoice</button>
+
+    <div id="returnButton">
+      <button onclick="window.location.href='dashboard.html'">🏠 Go to Dashboard</button>
+    </div>
+
+    <div class="footer">
+      Thank you for shopping with Smart Shop!
+    </div>
+  </div>
+<script src="config.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const visitId = urlParams.get("visitId");
+    if (!visitId) {
+      document.body.innerHTML = "<h2>❌ Visit ID not found</h2>";
+      throw new Error("No visitId provided");
+    }
+
+    document.getElementById("visitId").textContent = visitId;
+
+    let qrCanvasRef;
+
+    fetch(`${window.env.BACKEND_URL}/visits/${visitId}`)
+      .then(res => res.json())
+      .then(data => {
+        const { user, shopId, enteredAt, exitedAt, items, total } = data;
+
+        document.getElementById("email").textContent = user || "–";
+        document.getElementById("shop").textContent = shopId || "–";
+        document.getElementById("entry").textContent = new Date(enteredAt).toLocaleString();
+        document.getElementById("exit").textContent = exitedAt ? new Date(exitedAt).toLocaleString() : "–";
+        document.getElementById("totalAmount").textContent = total.toFixed(2);
+        document.getElementById("itemCount").textContent = items.length;
+
+        const tbody = document.getElementById("productTable");
+        let qrText = "";
+
+        items.forEach(p => {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${p.name}</td><td style="text-align:right;">₹${p.price}</td>`;
+          tbody.appendChild(row);
+          qrText += `item:${p.name}-${p.price}\n`;
+        });
+
+        const qr = new QRious({
+          element: document.getElementById("qr"),
+          value: qrText.trim(),
+          size: 140,
+          background: 'white',
+          foreground: '#222'
+        });
+
+        qrCanvasRef = document.getElementById("qr");
+      })
+      .catch(err => {
+        console.error("Failed to load invoice:", err);
+        document.body.innerHTML = "<h2>❌ Could not load invoice</h2>";
+      });
+
+    function downloadQR() {
+      const link = document.createElement("a");
+      link.download = `invoice-qr-${visitId}.png`;
+      link.href = qrCanvasRef.toDataURL("image/png");
+      link.click();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Visit History • Smart Shop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f7fa;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #007aff;
+    }
+
+    .summary-bar {
+      max-width: 640px;
+      margin: 10px auto 20px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .summary-bar div {
+      font-weight: bold;
+      margin: 5px 10px;
+    }
+
+    .filter {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    select {
+      padding: 8px 12px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .visit-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 640px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .visit-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    .product-list {
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+
+    .product-list li {
+      margin-bottom: 4px;
+    }
+
+    .totals {
+      margin-top: 10px;
+      font-weight: bold;
+      text-align: right;
+    }
+
+    .invoice-btn {
+      margin-top: 12px;
+      text-align: right;
+    }
+
+    .invoice-btn button {
+      background: #007aff;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .invoice-btn button:hover {
+      background: #005fcc;
+    }
+
+    .fallback {
+      text-align: center;
+      color: #888;
+      margin-top: 40px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <h2>📜 My Visit History</h2>
+
+  <div class="filter">
+    <label for="monthFilter">Filter by Month:</label>
+    <select id="monthFilter">
+      <option value="all">All Visits</option>
+    </select>
+  </div>
+
+  <div class="summary-bar" id="summaryBar" style="display:none;">
+    <div id="summaryCount"></div>
+    <div id="summaryTotal"></div>
+  </div>
+
+  <div id="historyContainer">
+    <div class="fallback">Loading visit records...</div>
+  </div>
+<script src="config.js"></script>
+  <script>
+    const email = localStorage.getItem("userEmail") || "";
+    const container = document.getElementById("historyContainer");
+    const filterSelect = document.getElementById("monthFilter");
+    const summaryBar = document.getElementById("summaryBar");
+    const summaryCount = document.getElementById("summaryCount");
+    const summaryTotal = document.getElementById("summaryTotal");
+
+    let allVisits = [];
+
+    fetch(`${window.env.BACKEND_URL}/visits`)
+      .then(res => res.json())
+      .then(data => {
+        allVisits = data.filter(v => v.user === email);
+        if (allVisits.length === 0) {
+          container.innerHTML = '<div class="fallback">No visits found.</div>';
+          return;
+        }
+
+        populateMonthFilter(allVisits);
+        renderVisits("all");
+      })
+      .catch(err => {
+        console.error("❌ Error fetching visit data:", err);
+        container.innerHTML = '<div class="fallback">Failed to load history.</div>';
+      });
+
+    function populateMonthFilter(visits) {
+      const months = [...new Set(
+        visits.map(v => {
+          const d = new Date(v.enteredAt);
+          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}`;
+        })
+      )];
+      months.sort().reverse().forEach(m => {
+        const option = document.createElement("option");
+        const [year, month] = m.split("-");
+        option.value = m;
+        option.textContent = `${month}/${year}`;
+        filterSelect.appendChild(option);
+      });
+
+      filterSelect.addEventListener("change", () => {
+        renderVisits(filterSelect.value);
+      });
+    }
+
+    function renderVisits(filterMonth) {
+      const filtered = filterMonth === "all"
+        ? allVisits
+        : allVisits.filter(v => {
+            const d = new Date(v.enteredAt);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}` === filterMonth;
+          });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="fallback">No visits for selected month.</div>';
+        summaryBar.style.display = "none";
+        return;
+      }
+
+      container.innerHTML = "";
+      let total = 0;
+      filtered.reverse().forEach(v => {
+        total += v.total;
+        const div = document.createElement("div");
+        div.className = "visit-card";
+        div.innerHTML = `
+          <div class="visit-header">
+            <div>🛍️ Shop: ${v.shopId}</div>
+            <div>${new Date(v.enteredAt).toLocaleDateString()}</div>
+          </div>
+          <div><strong>Entry:</strong> ${new Date(v.enteredAt).toLocaleTimeString()}</div>
+          <div><strong>Exit:</strong> ${v.exitedAt ? new Date(v.exitedAt).toLocaleTimeString() : "—"}</div>
+          <div class="product-list">
+            <strong>Products:</strong>
+            <ul>${v.items.map(i => `<li>${i.name} – ₹${i.price}</li>`).join("")}</ul>
+          </div>
+          <div class="totals">Total: ₹${v.total.toFixed(2)}</div>
+          <div class="invoice-btn">
+            <button onclick="window.location.href='invoice.html?visitId=${v._id}'">🧾 View Invoice</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      summaryBar.style.display = "flex";
+      summaryCount.textContent = `Visits: ${filtered.length}`;
+      summaryTotal.textContent = `Total Spent: ₹${total.toFixed(2)}`;
+    }
+  </script>
+</body>
+</html>

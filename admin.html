@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Shop • Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --text: #333;
+      --card-bg: rgba(255,255,255,0.75);
+      --accent: #007aff;
+      --sidebar-bg: linear-gradient(135deg, #007aff, #005ecb);
+      --filter-bg: #fff;
+    }
+    .dark-mode {
+      --bg: #1e1e1e;
+      --text: #eee;
+      --card-bg: rgba(30,30,30,0.6);
+      --accent: #4da6ff;
+      --sidebar-bg: linear-gradient(135deg, #2a2a2a, #111);
+      --filter-bg: #2d2d2d;
+    }
+
+    * {
+      margin: 0; padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      display: flex;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .sidebar {
+      width: 220px;
+      background: var(--sidebar-bg);
+      color: white;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .sidebar h2 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .nav-icon {
+      font-size: 1.4rem;
+      width: 24px;
+      text-align: center;
+    }
+
+    .main {
+      flex: 1;
+      padding: 30px 40px;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .dashboard-header h1 {
+      font-size: 1.6rem;
+    }
+
+    .dashboard-header button {
+      background: var(--accent);
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin: 40px 0 16px;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    select {
+      padding: 6px 12px;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: var(--filter-bg);
+      color: var(--text);
+    }
+
+    canvas {
+      background: var(--filter-bg);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+
+<script>
+  if (localStorage.getItem("isAdmin") !== "true") {
+    window.location.href = "index.html";
+  }
+</script>
+
+<div class="sidebar">
+  <h2>🛍️ Smart Admin</h2>
+  <div class="nav-item"><span class="nav-icon">📊</span> Dashboard</div>
+  <div class="nav-item"><span class="nav-icon">👥</span> Users</div>
+  <div class="nav-item"><span class="nav-icon">🧾</span> Visits</div>
+  <div class="nav-item"><span class="nav-icon">⚙️</span> Settings</div>
+</div>
+
+<div class="main">
+  <div class="dashboard-header">
+    <h1>Overview</h1>
+    <button onclick="toggleTheme()">🌗 Toggle Theme</button>
+  </div>
+
+  <div class="stats">
+    <div class="card">
+      <h3>Total Users</h3>
+      <div class="value" id="userCount">—</div>
+    </div>
+    <div class="card">
+      <h3>Total Visits</h3>
+      <div class="value" id="visitCount">—</div>
+    </div>
+    <div class="card">
+      <h3>Total Revenue</h3>
+      <div class="value">₹ 0.00</div>
+    </div>
+  </div>
+
+  <div class="section-title">📈 Activity Overview</div>
+  <div class="filter-row">
+    <label>View:</label>
+    <select id="timeFilter">
+      <option value="minutes">Minutes</option>
+      <option value="hourly">Hourly</option>
+      <option value="daily">Daily</option>
+      <option value="monthly" selected>Monthly</option>
+      <option value="yearly">Yearly</option>
+    </select>
+    <select id="chartType">
+      <option value="bar" selected>Bar</option>
+      <option value="line">Line</option>
+    </select>
+  </div>
+
+  <canvas id="myChart" height="100"></canvas>
+</div>
+<script src="config.js"></script>
+<script>
+  // Stats counters
+  fetch(`${window.env.BACKEND_URL}/users`)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("userCount").textContent = data.length || "0";
+    });
+
+  fetch(`${window.env.BACKEND_URL}/visits`)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("visitCount").textContent = data.length || "0";
+    });
+
+  // 🔌 Fetch real chart data from backend
+  async function getData(view) {
+    try {
+      const res = await fetch(`${window.env.BACKEND_URL}/analytics?range=${view}`);
+      return await res.json(); // expects { labels: [...], values: [...] }
+    } catch (err) {
+      console.error("Failed to fetch analytics:", err);
+      return { labels: [], values: [] };
+    }
+  }
+
+  const ctx = document.getElementById("myChart").getContext("2d");
+  let currentView = "monthly";
+  let currentType = "bar";
+  let myChart;
+
+  // 📈 Build chart
+  async function updateChart() {
+    const view = document.getElementById("timeFilter").value;
+    const type = document.getElementById("chartType").value;
+    const { labels, values } = await getData(view);
+
+    const dataset = {
+      label: "Visits",
+      data: values,
+      backgroundColor: "#007aff",
+      borderColor: "#007aff",
+      fill: type === "line" ? false : true,
+      tension: 0.4
+    };
+
+    if (!myChart || type !== currentType) {
+      if (myChart) myChart.destroy();
+      myChart = new Chart(ctx, {
+        type,
+        data: { labels, datasets: [dataset] },
+        options: {
+          responsive: true,
+          animation: { duration: 800, easing: "easeOutQuint" },
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } else {
+      myChart.data.labels = labels;
+      myChart.data.datasets[0].data = values;
+      myChart.update();
+    }
+
+    currentView = view;
+    currentType = type;
+  }
+
+  // 🌓 Theme toggle
+  function toggleTheme() {
+    document.body.classList.toggle("dark-mode");
+    localStorage.setItem("theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
+  }
+
+  // ☑️ Restore theme on load
+  if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+
+  // 🚀 Initialize
+  document.getElementById("timeFilter").addEventListener("change", updateChart);
+  document.getElementById("chartType").addEventListener("change", updateChart);
+  updateChart();
+</script>
+</body>
+</html>

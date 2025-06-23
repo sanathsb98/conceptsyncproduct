@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan Shop QR • Smart Shop</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #f4f7fa, #e9edf3);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scanner-box {
+      width: 340px;
+      padding: 30px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: #222;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #007aff, #4da6ff);
+      color: white;
+      font-weight: bold;
+      font-size: 1em;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+
+    #reader {
+      display: none;
+      width: 100%;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="scanner-box">
+    <h2>Scan Shop QR</h2>
+    <button id="startBtn" onclick="startScanner()">Start Scanning</button>
+    <button id="stopBtn" onclick="stopScanner()" style="display:none;">Stop Scanning</button>
+    <div id="reader"></div>
+  </div>
+<script src="config.js"></script>
+  <script>
+    let reader;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("📱 Shop QR scanner ready");
+
+      function onScanSuccess(decodedText) {
+        stopScanner();
+        console.log("✅ QR scanned:", decodedText);
+
+        const currentUser = localStorage.getItem("userEmail");
+        if (!currentUser) {
+          alert("⚠️ You're not logged in.");
+          return;
+        }
+
+        const visit = {
+          user: currentUser,
+          shopId: decodedText,
+          enteredAt: new Date().toISOString(),
+          exitedAt: null,
+          items: [],
+          total: 0
+        };
+
+        console.log("🔁 Sending visit to server...", visit);
+
+        fetch(`${window.env.BACKEND_URL}/visits`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(visit)
+        })
+          .then(res => {
+            if (!res.ok) throw new Error("Server responded with " + res.status);
+            return res.json();
+          })
+          .then(data => {
+            console.log("✅ Visit created:", data);
+            if (data.visitId) {
+              localStorage.setItem("visitId", data.visitId);
+              localStorage.setItem("scannedShopId", decodedText);
+              setTimeout(() => {
+                window.location.href = "dashboard.html";
+              }, 300);
+            } else {
+              alert("⚠️ Visit not created properly.");
+            }
+          })
+          .catch(err => {
+            console.error("❌ Fetch error:", err);
+            alert("❌ Could not contact server. Is it running?");
+          });
+      }
+
+      function onScanFailure(error) {
+        // Silently ignore scan failures
+      }
+
+      window.startScanner = () => {
+        document.getElementById("startBtn").style.display = "none";
+        document.getElementById("stopBtn").style.display = "inline-block";
+        document.getElementById("reader").style.display = "block";
+
+        reader = new Html5Qrcode("reader");
+        Html5Qrcode.getCameras()
+          .then(devices => {
+            if (devices && devices.length) {
+              reader.start(devices[0].id, { fps: 10, qrbox: 220 }, onScanSuccess, onScanFailure);
+            } else {
+              alert("📷 No camera found.");
+            }
+          })
+          .catch(err => {
+            console.error("Camera init error:", err);
+            alert("Camera error: " + err.message);
+          });
+      };
+
+      window.stopScanner = () => {
+        if (reader) {
+          reader.stop()
+            .then(() => {
+              document.getElementById("stopBtn").style.display = "none";
+              document.getElementById("startBtn").style.display = "inline-block";
+              document.getElementById("reader").style.display = "none";
+              console.log("🛑 Scanner stopped");
+            })
+            .catch(err => console.warn("Stop failed:", err));
+        }
+      };
+    });
+  </script>
+</body>
+
+</html>

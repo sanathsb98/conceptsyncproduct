@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Shop • Login/Register</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #f4f7fa, #e9edf3);
+      height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      width: 360px;
+      transition: all 0.4s ease;
+    }
+
+    .card.fade-out {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .field {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 14px 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 1em;
+    }
+
+    .toggle-eye {
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #007aff, #4da6ff);
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    .switch {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 0.9em;
+      color: #007aff;
+      cursor: pointer;
+    }
+
+    .msg {
+      color: crimson;
+      font-size: 0.85em;
+      text-align: center;
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+      const otpVerified = localStorage.getItem("otpVerified") === "true";
+      const user = localStorage.getItem("loggedInUser");
+
+      if (isLoggedIn && otpVerified && user) {
+        window.location.href = "dashboard.html";
+      }
+    });
+  </script>
+
+  <div class="card" id="formCard">
+    <h2 id="formTitle">Login</h2>
+    <div class="field">
+      <input type="email" id="email" placeholder="Email" />
+    </div>
+    <div class="field">
+      <input type="password" id="password" placeholder="Password" />
+      <span class="toggle-eye" onclick="togglePassword()">👁️</span>
+    </div>
+    <button class="btn" onclick="handleSubmit()">Login</button>
+    <div class="msg" id="msg">Message</div>
+    <div class="switch" onclick="toggleMode()">Don't have an account? Register</div>
+  </div>
+<script src="config.js"></script>
+  <script>
+    let isLogin = true;
+
+    function toggleMode() {
+      isLogin = !isLogin;
+      document.getElementById("formTitle").textContent = isLogin ? "Login" : "Register";
+      document.querySelector(".btn").textContent = isLogin ? "Login" : "Register";
+      document.querySelector(".switch").textContent = isLogin
+        ? "Don't have an account? Register"
+        : "Already registered? Login";
+      document.getElementById("msg").style.display = "none";
+    }
+
+    function togglePassword() {
+      const pwd = document.getElementById("password");
+      pwd.type = pwd.type === "password" ? "text" : "password";
+    }
+
+    function handleSubmit() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const msg = document.getElementById("msg");
+      const redirect = new URLSearchParams(location.search).get("returnTo") || "dashboard.html";
+
+      msg.style.display = "none";
+      if (!email || !password) return;
+
+      if (email === "diyas1@gmail.com" && password === "diyas") {
+        localStorage.setItem("loggedInUser", email);
+        localStorage.setItem("isAdmin", "true");
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("otpVerified", "true"); // ✅ ADDED
+        document.getElementById("formCard").classList.add("fade-out");
+        setTimeout(() => {
+          window.location.href = "admin.html";
+        }, 400);
+        return;
+      }
+
+      if (isLogin) {
+        fetch(`${window.env.BACKEND_URL}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        })
+          .then(res => {
+            if (res.ok) {
+              localStorage.setItem("loggedInUser", email);
+              localStorage.setItem("isLoggedIn", "true");
+              localStorage.setItem("otpVerified", "true"); // ✅ ADDED
+              document.getElementById("formCard").classList.add("fade-out");
+              setTimeout(() => {
+                window.location.href = redirect;
+              }, 400);
+            } else {
+              msg.textContent = "Invalid credentials";
+              msg.style.display = "block";
+            }
+          })
+          .catch(() => {
+            msg.textContent = "Server error";
+            msg.style.display = "block";
+          });
+      } else {
+        localStorage.setItem("registeredEmail", email);
+        localStorage.setItem("tempPassword", password);
+        localStorage.removeItem("otpVerified");
+        document.getElementById("formCard").classList.add("fade-out");
+        setTimeout(() => {
+          window.location.href = "otp.html";
+        }, 400);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const email = document.getElementById("email");
+      const password = document.getElementById("password");
+
+      email.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          password.focus();
+        }
+      });
+
+      password.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSubmit();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

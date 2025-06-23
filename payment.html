@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Payment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #f5f7fa, #dce3ed);
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #007aff;
+    }
+
+    .tiles {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 30px;
+    }
+
+    .pay-tile {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.06);
+      width: 140px;
+      height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .pay-tile:hover {
+      transform: translateY(-4px);
+      background: #f0f4f9;
+    }
+
+    #pinPad {
+      margin-top: 30px;
+      display: none;
+    }
+
+    #pinDisplay {
+      font-size: 1.5rem;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
+    }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .keypad button {
+      font-size: 1.2rem;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: #007aff;
+      color: white;
+      cursor: pointer;
+    }
+
+    .keypad button:hover {
+      background: #005fcc;
+    }
+
+    .success {
+      display: none;
+      font-size: 1.4rem;
+      color: #28a745;
+      margin-top: 40px;
+    }
+
+    .footer-links {
+      margin-top: 30px;
+    }
+
+    .footer-links a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #007aff;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <h1>Choose Payment Method</h1>
+
+  <div class="tiles">
+    <div class="pay-tile" onclick="selectPayment()">🧾 UPI</div>
+    <div class="pay-tile" onclick="selectPayment()">💳 Card</div>
+    <div class="pay-tile" onclick="selectPayment()">👛 Wallet</div>
+    <div class="pay-tile" onclick="selectPayment()">🚚 COD</div>
+  </div>
+
+  <div id="pinPad">
+    <div id="pinDisplay">____</div>
+    <div class="keypad">
+      <button onclick="pressDigit(1)">1</button>
+      <button onclick="pressDigit(2)">2</button>
+      <button onclick="pressDigit(3)">3</button>
+      <button onclick="pressDigit(4)">4</button>
+      <button onclick="pressDigit(5)">5</button>
+      <button onclick="pressDigit(6)">6</button>
+      <button onclick="pressDigit(7)">7</button>
+      <button onclick="pressDigit(8)">8</button>
+      <button onclick="pressDigit(9)">9</button>
+      <button onclick="clearPin()">C</button>
+      <button onclick="pressDigit(0)">0</button>
+      <button onclick="submitPayment()">✔</button>
+    </div>
+  </div>
+
+  <div class="success" id="successMessage">🎉 Payment Successful!</div>
+
+  <div class="footer-links">
+    <a href="dashboard.html">🏠 Back to Home</a>
+    <a href="history.html">📜 View Orders</a>
+  </div>
+
+  <!-- Tap Sound -->
+  <audio id="tapSound" src="https://cdn.pixabay.com/download/audio/2022/05/24/audio_e6119db20d.mp3?filename=click-124467.mp3" preload="auto"></audio>
+<script src="config.js"></script>
+  <script>
+    let pin = "";
+    const maxLength = 4;
+
+    function selectPayment() {
+      document.getElementById("tapSound").play();
+      document.getElementById("pinPad").style.display = "block";
+    }
+
+    function pressDigit(num) {
+      if (pin.length < maxLength) {
+        pin += num;
+        updatePinDisplay();
+      }
+    }
+
+    function clearPin() {
+      pin = "";
+      updatePinDisplay();
+    }
+
+    function updatePinDisplay() {
+      const dots = "_".repeat(maxLength - pin.length);
+      document.getElementById("pinDisplay").textContent = "•".repeat(pin.length) + dots;
+    }
+
+    function submitPayment() {
+      if (pin.length === maxLength) {
+        if (pin === "4455") {
+          confetti();
+          document.getElementById("successMessage").style.display = "block";
+
+          const visitId = localStorage.getItem("visitId");
+
+          fetch(`${window.env.BACKEND_URL}/visits/${visitId}/exit`, { method: "POST" })
+            .then(() => {
+              localStorage.removeItem("visitId");
+              localStorage.removeItem("scannedShopId");
+
+              setTimeout(() => {
+                window.location.href = `invoice.html?visitId=${visitId}`;
+              }, 2500);
+            })
+            .catch(err => {
+              alert("⚠️ Could not mark visit as exited.");
+              console.error("Exit API failed:", err);
+            });
+
+        } else {
+          alert("❌ Incorrect PIN. Try again.");
+          clearPin();
+        }
+      } else {
+        alert("Enter 4-digit PIN");
+      }
+    }
+  </script>
+</body>
+</html>
